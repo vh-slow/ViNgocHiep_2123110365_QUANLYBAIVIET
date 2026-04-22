@@ -234,5 +234,36 @@ namespace ViNgocHiep_2123110365.Controllers
             await _context.SaveChangesAsync();
             return Ok(new { success = true, message = "Đã khôi phục bài viết." });
         }
+
+        // GET: api/admin/books/{id}/history
+        [HttpGet("{id}/history")]
+        public async Task<ActionResult<IEnumerable<BookHistoryDTO>>> GetBookHistoryByAdmin(int id)
+        {
+            var bookExists = await _context.Books.IgnoreQueryFilters().AnyAsync(b => b.Id == id);
+            if (!bookExists)
+                return NotFound(new { message = "Không tìm thấy bài viết." });
+
+            var history = await _context
+                .BookHistories.Where(h => h.BookId == id)
+                .OrderByDescending(h => h.CreatedAt)
+                .Join(
+                    _context.Users.IgnoreQueryFilters(),
+                    h => h.EditedByUserId,
+                    u => u.Id,
+                    (h, u) =>
+                        new BookHistoryDTO
+                        {
+                            Id = h.Id,
+                            BookId = h.BookId,
+                            OldContent = h.OldContent,
+                            CreatedAt = h.CreatedAt,
+                            EditedByUserId = h.EditedByUserId,
+                            EditedByUserName = u.FullName,
+                        }
+                )
+                .ToListAsync();
+
+            return Ok(history);
+        }
     }
 }

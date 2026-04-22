@@ -468,5 +468,45 @@ namespace ViNgocHiep_2123110365.Controllers
                 )
             );
         }
+
+        // GET: api/Books/{id}/history
+        [Authorize(Roles = "user,admin")]
+        [HttpGet("{id}/history")]
+        public async Task<ActionResult<IEnumerable<BookHistoryDTO>>> GetMyBookHistory(int id)
+        {
+            var currentUserId = GetCurrentUserId()!.Value;
+            var isAdmin = User.IsInRole("admin");
+
+            var book = await _context
+                .Books.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(b => b.Id == id);
+            if (book == null)
+                return NotFound(new { message = "Không tìm thấy bài viết." });
+
+            if (!isAdmin && book.UserId != currentUserId)
+                return Forbid();
+
+            var history = await _context
+                .BookHistories.Where(h => h.BookId == id)
+                .OrderByDescending(h => h.CreatedAt)
+                .Join(
+                    _context.Users.IgnoreQueryFilters(),
+                    h => h.EditedByUserId,
+                    u => u.Id,
+                    (h, u) =>
+                        new BookHistoryDTO
+                        {
+                            Id = h.Id,
+                            BookId = h.BookId,
+                            OldContent = h.OldContent,
+                            CreatedAt = h.CreatedAt,
+                            EditedByUserId = h.EditedByUserId,
+                            EditedByUserName = u.FullName,
+                        }
+                )
+                .ToListAsync();
+
+            return Ok(history);
+        }
     }
 }

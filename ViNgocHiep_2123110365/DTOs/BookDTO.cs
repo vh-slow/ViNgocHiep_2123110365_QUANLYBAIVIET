@@ -25,4 +25,15 @@
         public string Content { get; set; } = string.Empty;
         public List<CommentDTO> Comments { get; set; } = new List<CommentDTO>();
     }
+
+    public class BookHistoryDTO
+    {
+        public int Id { get; set; }
+        public int BookId { get; set; }
+        public string OldContent { get; set; } = string.Empty;
+        public DateTime CreatedAt { get; set; }
+
+        public int EditedByUserId { get; set; }
+        public string EditedByUserName { get; set; } = string.Empty;
+    }
 }
