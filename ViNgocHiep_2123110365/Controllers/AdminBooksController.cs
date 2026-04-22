@@ -31,6 +31,7 @@ namespace ViNgocHiep_2123110365.Controllers
                 .Books.IgnoreQueryFilters()
                 .Include(b => b.Category)
                 .Include(b => b.User)
+                .Include(b => b.Favorites)
                 .AsQueryable();
 
             if (filter.Status.HasValue)
@@ -56,6 +57,7 @@ namespace ViNgocHiep_2123110365.Controllers
                     ViewCount = b.ViewCount,
                     CreatedAt = b.CreatedAt,
                     IsFavorited = b.IsDeleted,
+                    FavoriteCount = b.Favorites!.Count,
                     Category = new CategoryDTO { Id = b.Category!.Id, Name = b.Category.Name },
                     User = new UserDTO
                     {
@@ -83,6 +85,7 @@ namespace ViNgocHiep_2123110365.Controllers
                 .Books.IgnoreQueryFilters()
                 .Include(b => b.Category)
                 .Include(b => b.User)
+                .Include(b => b.Favorites)
                 .FirstOrDefaultAsync(b => b.Id == id);
 
             if (book == null)
@@ -99,6 +102,7 @@ namespace ViNgocHiep_2123110365.Controllers
                 ViewCount = book.ViewCount,
                 Status = book.Status,
                 CreatedAt = book.CreatedAt,
+                FavoriteCount = book.Favorites!.Count,
                 Category = new CategoryDTO { Id = book.Category!.Id, Name = book.Category.Name },
                 User = new UserDTO { Id = book.User!.Id, FullName = book.User.FullName },
             };
@@ -187,6 +191,22 @@ namespace ViNgocHiep_2123110365.Controllers
             book.IsDeleted = true;
             await _context.SaveChangesAsync();
             return Ok(new { success = true, message = "Đã khóa bài viết." });
+        }
+
+        // PUT: api/admin/books/{id}/lock
+        [HttpPut("{id}/lock")]
+        public async Task<IActionResult> LockBook(int id)
+        {
+            var book = await _context.Books.FindAsync(id);
+            if (book == null)
+                return NotFound(new { message = "Không tìm thấy bài viết." });
+
+            book.Status = 3;
+            book.UpdatedAt = DateTime.Now;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { success = true, message = "Đã khóa bài viết vi phạm." });
         }
 
         // PUT: api/admin/books/{id}/approve

@@ -10,7 +10,7 @@ using ViNgocHiep_2123110365.Models;
 
 namespace ViNgocHiep_2123110365.Controllers
 {
-    [Route("api/books")]
+    [Route("api")]
     [ApiController]
     public class AuthController : ControllerBase
     {

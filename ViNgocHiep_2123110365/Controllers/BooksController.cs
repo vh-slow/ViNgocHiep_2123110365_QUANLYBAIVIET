@@ -76,6 +76,8 @@ namespace ViNgocHiep_2123110365.Controllers
                         currentUserId.HasValue
                         && b.Favorites.Any(f => f.UserId == currentUserId.Value),
 
+                    FavoriteCount = b.Favorites.Count,
+
                     Category = new CategoryDTO
                     {
                         Id = b.Category!.Id,
@@ -117,8 +119,15 @@ namespace ViNgocHiep_2123110365.Controllers
             if (book == null)
                 return NotFound(new { message = "Không tìm thấy bài viết." });
 
-            if (book.Status == 0 && (!currentUserId.HasValue || currentUserId.Value != book.UserId))
-                return Forbid();
+            var isAdmin = User.IsInRole("admin");
+
+            if (book.Status != 1)
+            {
+                if (!currentUserId.HasValue || (currentUserId.Value != book.UserId && !isAdmin))
+                {
+                    return Forbid();
+                }
+            }
 
             var bookDetail = new BookDetailResponseDTO
             {
@@ -135,6 +144,8 @@ namespace ViNgocHiep_2123110365.Controllers
                 IsFavorited =
                     currentUserId.HasValue
                     && book.Favorites!.Any(f => f.UserId == currentUserId.Value),
+
+                FavoriteCount = book.Favorites!.Count,
 
                 Category = new CategoryDTO
                 {
@@ -195,6 +206,7 @@ namespace ViNgocHiep_2123110365.Controllers
                     ViewCount = b.ViewCount,
                     Status = b.Status,
                     CreatedAt = b.CreatedAt,
+                    FavoriteCount = b.Favorites!.Count,
                     Category = new CategoryDTO { Id = b.Category!.Id, Name = b.Category.Name },
                     User = new UserDTO { Id = b.User!.Id, FullName = b.User.FullName },
                 })
@@ -212,6 +224,7 @@ namespace ViNgocHiep_2123110365.Controllers
             var currentUserId = GetCurrentUserId()!.Value;
             var query = _context
                 .Books.Include(b => b.Category)
+                .Include(b => b.Favorites)
                 .Where(b => b.UserId == currentUserId)
                 .AsQueryable();
 
@@ -231,6 +244,7 @@ namespace ViNgocHiep_2123110365.Controllers
                     Status = b.Status,
                     CreatedAt = b.CreatedAt,
                     ViewCount = b.ViewCount,
+                    FavoriteCount = b.Favorites.Count,
                     Category = new CategoryDTO { Id = b.Category!.Id, Name = b.Category.Name },
                 })
                 .ToListAsync();
@@ -261,6 +275,10 @@ namespace ViNgocHiep_2123110365.Controllers
         [HttpPost]
         public async Task<IActionResult> PostBook([FromForm] CreateUpdateBookDTO request)
         {
+            var currentUserId = GetCurrentUserId()!.Value;
+
+            var isAdmin = User.IsInRole("admin");
+
             var book = new Book
             {
                 Title = request.Title,
@@ -269,13 +287,19 @@ namespace ViNgocHiep_2123110365.Controllers
                 Content = request.Content,
                 CategoryId = request.CategoryId,
                 Thumbnail = await FileHelper.UploadFileAsync(request.ThumbnailFile, "books"),
-                UserId = GetCurrentUserId()!.Value,
+                UserId = currentUserId,
                 CreatedAt = DateTime.Now,
-                Status = 0,
+                Status = isAdmin ? (byte)1 : (byte)0,
             };
+
             _context.Books.Add(book);
             await _context.SaveChangesAsync();
-            return Ok(new { success = true, message = "Bài viết đang chờ Admin phê duyệt." });
+
+            string responseMessage = isAdmin
+                ? "Đăng bài thành công! Bài viết đã được hiển thị."
+                : "Bài viết đã lưu và đang chờ Admin phê duyệt.";
+
+            return Ok(new { success = true, message = responseMessage });
         }
 
         // PUT: api/Books/{id}
@@ -290,9 +314,18 @@ namespace ViNgocHiep_2123110365.Controllers
             }
 
             var currentUserId = GetCurrentUserId()!.Value;
-            if (oldBook.UserId != currentUserId)
+            var isAdmin = User.IsInRole("admin");
+
+            if (!isAdmin && oldBook.UserId != currentUserId)
             {
                 return Forbid();
+            }
+
+            if (!isAdmin && oldBook.Status == 3)
+            {
+                return BadRequest(
+                    new { message = "Bài viết này đang bị khóa, bạn không thể chỉnh sửa nội dung." }
+                );
             }
 
             _context.BookHistories.Add(
@@ -320,18 +353,17 @@ namespace ViNgocHiep_2123110365.Controllers
                 UserId = oldBook.UserId,
                 CreatedAt = oldBook.CreatedAt,
                 UpdatedAt = DateTime.Now,
-                Status = 0,
+                Status = isAdmin ? oldBook.Status : (byte)0,
             };
 
             _context.Entry(updatedBook).State = EntityState.Modified;
             await _context.SaveChangesAsync();
-            return Ok(
-                new
-                {
-                    success = true,
-                    message = "Cập nhật thành công, đang chờ duyệt lại bài viết!",
-                }
-            );
+
+            string responseMessage = isAdmin
+                ? "Cập nhật bài viết thành công!"
+                : "Cập nhật thành công, đang chờ duyệt lại bài viết!";
+
+            return Ok(new { success = true, message = responseMessage });
         }
 
         // DELETE: api/Books/{id}
@@ -352,6 +384,49 @@ namespace ViNgocHiep_2123110365.Controllers
             return Ok(new { success = true, message = "Đã xóa bài viết." });
         }
 
+        // PUT: api/Books/{id}/toggle-visibility
+        [Authorize(Roles = "user,admin")]
+        [HttpPut("{id}/toggle-visibility")]
+        public async Task<IActionResult> ToggleVisibility(int id)
+        {
+            var book = await _context.Books.FindAsync(id);
+            if (book == null)
+                return NotFound(new { message = "Không tìm thấy bài viết." });
+
+            var currentUserId = GetCurrentUserId()!.Value;
+            var isAdmin = User.IsInRole("admin");
+
+            if (!isAdmin && book.UserId != currentUserId)
+                return Forbid();
+
+            if (book.Status == 0)
+                return BadRequest(
+                    new { message = "Bài viết đang chờ duyệt, không thể thay đổi hiển thị." }
+                );
+            if (book.Status == 3)
+                return BadRequest(
+                    new { message = "Bài viết này đã bị Admin khóa, không thể tự mở lại." }
+                );
+
+            book.Status = book.Status == 1 ? (byte)2 : (byte)1;
+            book.UpdatedAt = DateTime.Now;
+
+            await _context.SaveChangesAsync();
+
+            string responseMsg =
+                book.Status == 1
+                    ? "Đã hiển thị bài viết công khai."
+                    : "Đã chuyển bài viết về chế độ riêng tư.";
+            return Ok(
+                new
+                {
+                    success = true,
+                    message = responseMsg,
+                    newStatus = book.Status,
+                }
+            );
+        }
+
         [HttpGet("user/{username}")]
         public async Task<
             ActionResult<PagedResponse<IEnumerable<BookListResponseDTO>>>
@@ -360,6 +435,7 @@ namespace ViNgocHiep_2123110365.Controllers
             var query = _context
                 .Books.Include(b => b.Category)
                 .Include(b => b.User)
+                .Include(b => b.Favorites)
                 .Where(b => b.User!.Username == username && b.Status == 1)
                 .AsQueryable();
 
@@ -377,6 +453,7 @@ namespace ViNgocHiep_2123110365.Controllers
                     Summary = b.Summary,
                     ViewCount = b.ViewCount,
                     CreatedAt = b.CreatedAt,
+                    FavoriteCount = b.Favorites.Count,
                     Category = new CategoryDTO { Name = b.Category!.Name },
                     User = new UserDTO { FullName = b.User!.FullName, Username = b.User.Username },
                 })

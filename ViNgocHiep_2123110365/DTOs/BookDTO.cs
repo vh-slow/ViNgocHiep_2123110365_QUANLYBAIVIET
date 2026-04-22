@@ -14,6 +14,8 @@
         public bool IsFavorited { get; set; } = false;
         public CategoryDTO? Category { get; set; }
         public UserDTO? User { get; set; }
+
+        public int FavoriteCount { get; set; } = 0;
     }
 
     public class BookDetailResponseDTO : BookListResponseDTO
