@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ViNgocHiep_2123110365.Data;
@@ -18,13 +19,17 @@ namespace ViNgocHiep_2123110365.Controllers
             _context = context;
         }
 
-        // GET: api/Comments/Book/{id}
+        private int GetCurrentUserId()
+        {
+            return int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        }
+
         [HttpGet("Book/{bookId}")]
         public async Task<ActionResult<IEnumerable<CommentDTO>>> GetCommentsByBook(int bookId)
         {
             var comments = await _context
-                .Comments.Where(c => c.BookId == bookId)
-                .Include(c => c.User)
+                .Comments.Include(c => c.User)
+                .Where(c => c.BookId == bookId && !c.IsDeleted && c.User!.Status == 1)
                 .OrderByDescending(c => c.CreatedAt)
                 .Select(c => new CommentDTO
                 {
@@ -42,69 +47,57 @@ namespace ViNgocHiep_2123110365.Controllers
                 })
                 .ToListAsync();
 
-            return comments;
-        }
-
-        // GET: api/Comments/{id}
-        [HttpGet("{id}")]
-        public async Task<ActionResult<Comment>> GetComment(int id)
-        {
-            var comment = await _context.Comments.FindAsync(id);
-
-            if (comment == null)
-            {
-                return NotFound();
-            }
-
-            return comment;
+            return Ok(comments);
         }
 
         // POST: api/Comments
-        [Authorize]
+        [Authorize(Roles = "user,admin")]
         [HttpPost]
-        public async Task<ActionResult<Comment>> PostComment(Comment comment)
+        public async Task<IActionResult> PostComment([FromBody] CreateCommentDTO request)
         {
-            comment.CreatedAt = DateTime.Now;
+            var userId = GetCurrentUserId();
+
+            var book = await _context.Books.FirstOrDefaultAsync(b =>
+                b.Id == request.BookId && !b.IsDeleted && b.Status == 1
+            );
+            if (book == null)
+                return BadRequest(new { message = "Sách không tồn tại hoặc đã bị ẩn." });
+
+            var comment = new Comment
+            {
+                Content = request.Content,
+                BookId = request.BookId,
+                UserId = userId,
+                CreatedAt = DateTime.Now,
+            };
 
             _context.Comments.Add(comment);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetComment", new { id = comment.Id }, comment);
+            return Ok(new { success = true, message = "Đã gửi bình luận." });
         }
 
         // PUT: api/Comments/{id}
-        [Authorize]
+        [Authorize(Roles = "user,admin")]
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutComment(int id, Comment comment)
+        public async Task<IActionResult> PutComment(int id, [FromBody] UpdateCommentDTO request)
         {
-            if (id != comment.Id)
-            {
-                return BadRequest();
-            }
+            var comment = await _context.Comments.FindAsync(id);
+            if (comment == null)
+                return NotFound();
 
-            _context.Entry(comment).State = EntityState.Modified;
+            if (comment.UserId != GetCurrentUserId())
+                return Forbid();
 
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!CommentExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
+            comment.Content = request.Content;
 
-            return NoContent();
+            await _context.SaveChangesAsync();
+
+            return Ok(new { success = true, message = "Đã cập nhật bình luận." });
         }
 
         // DELETE: api/Comments/{id}
-        [Authorize]
+        [Authorize(Roles = "user,admin")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteComment(int id)
         {
@@ -114,16 +107,14 @@ namespace ViNgocHiep_2123110365.Controllers
                 return NotFound();
             }
 
+            if (comment.UserId != GetCurrentUserId())
+                return Forbid();
+
             comment.IsDeleted = true;
 
             await _context.SaveChangesAsync();
 
-            return NoContent();
-        }
-
-        private bool CommentExists(int id)
-        {
-            return _context.Comments.Any(e => e.Id == id);
+            return Ok(new { success = true, message = "Đã xóa bình luận." });
         }
     }
 }
