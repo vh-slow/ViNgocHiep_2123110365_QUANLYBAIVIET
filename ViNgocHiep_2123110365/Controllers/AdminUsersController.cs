@@ -130,6 +130,7 @@ namespace ViNgocHiep_2123110365.Controllers
                     Id = user.Id,
                     FullName = user.FullName,
                     Username = user.Username,
+                    Email = user.Email,
                     Avatar = user.Avatar,
                     Bio = user.Bio,
                     Role = user.Role,

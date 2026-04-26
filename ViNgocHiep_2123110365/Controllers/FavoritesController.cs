@@ -49,6 +49,7 @@ namespace ViNgocHiep_2123110365.Controllers
                     ViewCount = f.Book.ViewCount,
                     Status = f.Book.Status,
                     CreatedAt = f.Book.CreatedAt,
+                    FavoriteCount = f.Book.Favorites.Count,
                     Category = new CategoryDTO
                     {
                         Id = f.Book.Category!.Id,
@@ -87,12 +88,14 @@ namespace ViNgocHiep_2123110365.Controllers
             {
                 _context.Favorites.Remove(existingFavorite);
                 await _context.SaveChangesAsync();
+                var currentFavCount = await _context.Favorites.CountAsync(f => f.BookId == bookId);
                 return Ok(
                     new
                     {
                         success = true,
                         message = "Đã bỏ yêu thích.",
                         isFavorited = false,
+                        favoriteCount = currentFavCount,
                     }
                 );
             }
@@ -106,12 +109,14 @@ namespace ViNgocHiep_2123110365.Controllers
                 };
                 _context.Favorites.Add(newFavorite);
                 await _context.SaveChangesAsync();
+                var currentFavCount = await _context.Favorites.CountAsync(f => f.BookId == bookId);
                 return Ok(
                     new
                     {
                         success = true,
                         message = "Đã thêm vào danh sách yêu thích.",
                         isFavorited = true,
+                        favoriteCount = currentFavCount,
                     }
                 );
             }

@@ -38,7 +38,7 @@ namespace ViNgocHiep_2123110365.Controllers
                 .Books.Include(b => b.Category)
                 .Include(b => b.User)
                 .Include(b => b.Favorites)
-                .Where(b => b.Status == 1)
+                .Where(b => b.Status == 1 && b.Category != null && !b.Category.IsDeleted)
                 .AsQueryable();
 
             if (filter.CategoryId.HasValue)
@@ -180,6 +180,37 @@ namespace ViNgocHiep_2123110365.Controllers
             return Ok(bookDetail);
         }
 
+        [Authorize(Roles = "user,admin")]
+        [HttpGet("detail/{id}")]
+        public async Task<ActionResult<BookDetailResponseDTO>> GetBookByIdForEdit(int id)
+        {
+            var currentUserId = GetCurrentUserId()!.Value;
+            var isAdmin = User.IsInRole("admin");
+
+            var book = await _context
+                .Books.Include(b => b.Category)
+                .FirstOrDefaultAsync(b => b.Id == id);
+
+            if (book == null || book.IsDeleted)
+                return NotFound(new { message = "Không tìm thấy bài viết." });
+
+            if (!isAdmin && book.UserId != currentUserId)
+                return Forbid();
+
+            return Ok(
+                new BookDetailResponseDTO
+                {
+                    Id = book.Id,
+                    Title = book.Title,
+                    Summary = book.Summary,
+                    Content = book.Content,
+                    Thumbnail = book.Thumbnail,
+                    Status = book.Status,
+                    Category = new CategoryDTO { Id = book.CategoryId },
+                }
+            );
+        }
+
         [HttpGet("{id}/related")]
         public async Task<ActionResult<IEnumerable<BookListResponseDTO>>> GetRelatedBooks(
             int id,
@@ -225,7 +256,9 @@ namespace ViNgocHiep_2123110365.Controllers
             var query = _context
                 .Books.Include(b => b.Category)
                 .Include(b => b.Favorites)
-                .Where(b => b.UserId == currentUserId)
+                .Where(b =>
+                    b.UserId == currentUserId && b.Category != null && !b.Category.IsDeleted
+                )
                 .AsQueryable();
 
             if (filter.Status.HasValue)
@@ -240,6 +273,7 @@ namespace ViNgocHiep_2123110365.Controllers
                 {
                     Id = b.Id,
                     Title = b.Title,
+                    Slug = b.Slug,
                     Thumbnail = b.Thumbnail,
                     Status = b.Status,
                     CreatedAt = b.CreatedAt,
@@ -436,7 +470,12 @@ namespace ViNgocHiep_2123110365.Controllers
                 .Books.Include(b => b.Category)
                 .Include(b => b.User)
                 .Include(b => b.Favorites)
-                .Where(b => b.User!.Username == username && b.Status == 1)
+                .Where(b =>
+                    b.User!.Username == username
+                    && b.Status == 1
+                    && b.Category != null
+                    && !b.Category.IsDeleted
+                )
                 .AsQueryable();
 
             var totalRecords = await query.CountAsync();
@@ -507,6 +546,33 @@ namespace ViNgocHiep_2123110365.Controllers
                 .ToListAsync();
 
             return Ok(history);
+        }
+
+        // GET: /my-stats
+        [Authorize(Roles = "user,admin")]
+        [HttpGet("my-stats")]
+        public async Task<IActionResult> GetMyStats()
+        {
+            var currentUserId = GetCurrentUserId()!.Value;
+
+            var myBooks = _context.Books.Where(b => b.UserId == currentUserId && !b.IsDeleted);
+
+            var totalPublished = await myBooks.CountAsync(b => b.Status == 1);
+
+            var totalViews = await myBooks.SumAsync(b => (int?)b.ViewCount) ?? 0;
+
+            var totalFavorites = await _context.Favorites.CountAsync(f =>
+                f.Book!.UserId == currentUserId && !f.Book.IsDeleted
+            );
+
+            return Ok(
+                new
+                {
+                    totalPublished = totalPublished,
+                    totalViews = totalViews,
+                    totalFavorites = totalFavorites,
+                }
+            );
         }
     }
 }

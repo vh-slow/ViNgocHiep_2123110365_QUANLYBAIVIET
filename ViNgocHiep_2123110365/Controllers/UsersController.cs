@@ -49,8 +49,6 @@ namespace ViNgocHiep_2123110365.Controllers
             );
         }
 
-        // ================= PRIVATE APIS =================
-
         // GET: api/users/me
         [Authorize]
         [HttpGet("me")]
@@ -68,6 +66,7 @@ namespace ViNgocHiep_2123110365.Controllers
                     FullName = user.FullName,
                     Username = user.Username,
                     Avatar = user.Avatar,
+                    Email = user.Email,
                     Bio = user.Bio,
                     Role = user.Role,
                     Status = user.Status,

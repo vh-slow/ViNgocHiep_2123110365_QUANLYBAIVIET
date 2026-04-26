@@ -50,7 +50,11 @@ namespace ViNgocHiep_2123110365
                     "AllowAll",
                     policy =>
                     {
-                        policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
+                        policy
+                            .WithOrigins("http://localhost:3000")
+                            .AllowAnyMethod()
+                            .AllowAnyHeader()
+                            .AllowCredentials();
                     }
                 );
             });

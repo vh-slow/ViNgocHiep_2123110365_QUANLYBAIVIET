@@ -15,6 +15,7 @@ namespace ViNgocHiep_2123110365.DTOs
         public string FullName { get; set; } = string.Empty;
         public string Username { get; set; } = string.Empty;
         public string? Avatar { get; set; }
+        public string? Email { get; set; }
         public string? Bio { get; set; }
         public string Role { get; set; } = string.Empty;
         public byte Status { get; set; }

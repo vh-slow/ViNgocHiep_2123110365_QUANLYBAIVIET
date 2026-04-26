@@ -53,6 +53,7 @@ namespace ViNgocHiep_2123110365.Controllers
                     Id = b.Id,
                     Title = b.Title,
                     Thumbnail = b.Thumbnail,
+                    Summary = b.Summary,
                     Status = b.Status,
                     ViewCount = b.ViewCount,
                     CreatedAt = b.CreatedAt,
@@ -104,7 +105,13 @@ namespace ViNgocHiep_2123110365.Controllers
                 CreatedAt = book.CreatedAt,
                 FavoriteCount = book.Favorites!.Count,
                 Category = new CategoryDTO { Id = book.Category!.Id, Name = book.Category.Name },
-                User = new UserDTO { Id = book.User!.Id, FullName = book.User.FullName },
+                User = new UserDTO
+                {
+                    Id = book.User!.Id,
+                    FullName = book.User.FullName,
+                    Avatar = book.User.Avatar,
+                    Username = book.User.Username,
+                },
             };
 
             return Ok(response);
