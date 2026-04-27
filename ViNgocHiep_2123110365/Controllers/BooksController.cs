@@ -547,32 +547,5 @@ namespace ViNgocHiep_2123110365.Controllers
 
             return Ok(history);
         }
-
-        // GET: /my-stats
-        [Authorize(Roles = "user,admin")]
-        [HttpGet("my-stats")]
-        public async Task<IActionResult> GetMyStats()
-        {
-            var currentUserId = GetCurrentUserId()!.Value;
-
-            var myBooks = _context.Books.Where(b => b.UserId == currentUserId && !b.IsDeleted);
-
-            var totalPublished = await myBooks.CountAsync(b => b.Status == 1);
-
-            var totalViews = await myBooks.SumAsync(b => (int?)b.ViewCount) ?? 0;
-
-            var totalFavorites = await _context.Favorites.CountAsync(f =>
-                f.Book!.UserId == currentUserId && !f.Book.IsDeleted
-            );
-
-            return Ok(
-                new
-                {
-                    totalPublished = totalPublished,
-                    totalViews = totalViews,
-                    totalFavorites = totalFavorites,
-                }
-            );
-        }
     }
 }

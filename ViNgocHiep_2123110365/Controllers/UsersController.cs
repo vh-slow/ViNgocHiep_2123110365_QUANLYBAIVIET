@@ -124,5 +124,36 @@ namespace ViNgocHiep_2123110365.Controllers
             await _context.SaveChangesAsync();
             return Ok(new { success = true, message = "Đổi mật khẩu thành công!" });
         }
+
+        // GET: api/users/stats/{username}
+        [HttpGet("stats/{username}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetUserStats(string username)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == username);
+            if (user == null)
+                return NotFound(new { message = "Không tìm thấy người dùng." });
+
+            var publicBooks = _context.Books.Where(b =>
+                b.UserId == user.Id && b.Status == 1 && !b.IsDeleted
+            );
+
+            var totalPublished = await publicBooks.CountAsync();
+
+            var totalViews = await publicBooks.SumAsync(b => (int?)b.ViewCount) ?? 0;
+
+            var totalFavorites = await _context.Favorites.CountAsync(f =>
+                f.Book!.UserId == user.Id && f.Book.Status == 1 && !f.Book.IsDeleted
+            );
+
+            return Ok(
+                new
+                {
+                    totalPublished = totalPublished,
+                    totalViews = totalViews,
+                    totalFavorites = totalFavorites,
+                }
+            );
+        }
     }
 }
