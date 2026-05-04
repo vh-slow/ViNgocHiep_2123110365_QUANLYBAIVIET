@@ -28,6 +28,7 @@ namespace ViNgocHiep_2123110365.Controllers
             return null;
         }
 
+        // GET: api/Books
         [HttpGet]
         public async Task<ActionResult<PagedResponse<IEnumerable<BookListResponseDTO>>>> GetBooks(
             [FromQuery] PublicBookFilter filter
@@ -48,10 +49,20 @@ namespace ViNgocHiep_2123110365.Controllers
             if (!string.IsNullOrWhiteSpace(filter.SearchQuery))
             {
                 var search = filter.SearchQuery.ToLower().Trim();
-                query = query.Where(b =>
-                    b.Title.ToLower().Contains(search)
-                    || (b.Summary != null && b.Summary.ToLower().Contains(search))
-                );
+                if (search.StartsWith("#"))
+                {
+                    var tagSearch = search.Substring(1);
+                    query = query.Where(b =>
+                        b.BookTags!.Any(bt => bt.Tag!.Name.ToLower().Contains(tagSearch))
+                    );
+                }
+                else
+                {
+                    query = query.Where(b =>
+                        b.Title.ToLower().Contains(search)
+                        || (b.Summary != null && b.Summary.ToLower().Contains(search))
+                    );
+                }
             }
 
             query =
@@ -188,6 +199,7 @@ namespace ViNgocHiep_2123110365.Controllers
             return Ok(bookDetail);
         }
 
+        // GET: api/Books/detail/{id}
         [Authorize(Roles = "user,admin")]
         [HttpGet("detail/{id}")]
         public async Task<ActionResult<BookDetailResponseDTO>> GetBookByIdForEdit(int id)
@@ -222,6 +234,7 @@ namespace ViNgocHiep_2123110365.Controllers
             );
         }
 
+        // GET: api/Books/{id}/related
         [HttpGet("{id}/related")]
         public async Task<ActionResult<IEnumerable<BookListResponseDTO>>> GetRelatedBooks(
             int id,
@@ -257,6 +270,7 @@ namespace ViNgocHiep_2123110365.Controllers
             return Ok(relatedBooks);
         }
 
+        // GET: api/Books/my-books
         [Authorize(Roles = "user,admin")]
         [HttpGet("my-books")]
         public async Task<ActionResult<PagedResponse<IEnumerable<BookListResponseDTO>>>> GetMyBooks(
@@ -304,6 +318,7 @@ namespace ViNgocHiep_2123110365.Controllers
             );
         }
 
+        // GET: api/Books/{id}/increment-view
         [HttpPost("{id}/increment-view")]
         public async Task<IActionResult> IncrementViewCount(int id)
         {
@@ -511,6 +526,7 @@ namespace ViNgocHiep_2123110365.Controllers
             );
         }
 
+        // PUT: api/Books/user/{username}
         [HttpGet("user/{username}")]
         public async Task<
             ActionResult<PagedResponse<IEnumerable<BookListResponseDTO>>>
@@ -596,6 +612,87 @@ namespace ViNgocHiep_2123110365.Controllers
                 .ToListAsync();
 
             return Ok(history);
+        }
+
+        // GET: api/Books/feed
+        [Authorize(Roles = "user,admin")]
+        [HttpGet("feed")]
+        public async Task<
+            ActionResult<PagedResponse<IEnumerable<BookListResponseDTO>>>
+        > GetNewsFeed([FromQuery] PaginationFilter filter)
+        {
+            var currentUserId = GetCurrentUserId()!.Value;
+
+            var followingUserIds = await _context
+                .Follows.Where(f => f.FollowerId == currentUserId)
+                .Select(f => f.FollowingId)
+                .ToListAsync();
+
+            if (!followingUserIds.Any())
+                return Ok(
+                    new PagedResponse<IEnumerable<BookListResponseDTO>>(
+                        new List<BookListResponseDTO>(),
+                        filter.PageNumber,
+                        filter.PageSize,
+                        0
+                    )
+                );
+
+            var query = _context
+                .Books.Include(b => b.Category)
+                .Include(b => b.User)
+                .Include(b => b.Favorites)
+                .Include(b => b.BookTags!)
+                .ThenInclude(bt => bt.Tag)
+                .Where(b =>
+                    followingUserIds.Contains(b.UserId)
+                    && b.Status == 1
+                    && b.Category != null
+                    && !b.Category.IsDeleted
+                )
+                .AsQueryable();
+
+            var totalRecords = await query.CountAsync();
+            var pagedData = await query
+                .OrderByDescending(b => b.CreatedAt)
+                .Skip((filter.PageNumber - 1) * filter.PageSize)
+                .Take(filter.PageSize)
+                .Select(b => new BookListResponseDTO
+                {
+                    Id = b.Id,
+                    Title = b.Title,
+                    Slug = b.Slug,
+                    Thumbnail = b.Thumbnail,
+                    Summary = b.Summary,
+                    ViewCount = b.ViewCount,
+                    Status = b.Status,
+                    CreatedAt = b.CreatedAt,
+                    IsFavorited = b.Favorites.Any(f => f.UserId == currentUserId),
+                    FavoriteCount = b.Favorites.Count,
+                    Tags = b.BookTags!.Select(bt => bt.Tag!.Name).ToList(),
+                    Category = new CategoryDTO
+                    {
+                        Id = b.Category!.Id,
+                        Name = b.Category.Name,
+                        Slug = b.Category.Slug,
+                    },
+                    User = new UserDTO
+                    {
+                        Id = b.User!.Id,
+                        FullName = b.User.FullName,
+                        Username = b.User.Username,
+                    },
+                })
+                .ToListAsync();
+
+            return Ok(
+                new PagedResponse<IEnumerable<BookListResponseDTO>>(
+                    pagedData,
+                    filter.PageNumber,
+                    filter.PageSize,
+                    totalRecords
+                )
+            );
         }
     }
 }

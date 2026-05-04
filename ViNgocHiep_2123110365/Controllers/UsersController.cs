@@ -53,33 +53,33 @@ namespace ViNgocHiep_2123110365.Controllers
             );
         }
 
-        // [POST] api/users/follow/{targetUserId}
+        // [POST] api/users/follow/{userId}
         [Authorize]
-        [HttpPost("follow/{targetUserId}")]
-        public async Task<IActionResult> FollowUser(int targetUserId)
+        [HttpPost("follow/{userId}")]
+        public async Task<IActionResult> FollowUser(int userId)
         {
             var currentUserId = GetCurrentUserId();
-            if (currentUserId == targetUserId)
+            if (currentUserId == userId)
                 return BadRequest("không thể tự theo dõi!");
 
-            var targetUser = await _context.Users.FindAsync(targetUserId);
+            var targetUser = await _context.Users.FindAsync(userId);
             if (targetUser == null)
                 return NotFound();
 
-            var existingFollow = await _context.Follows.FindAsync(currentUserId, targetUserId);
+            var existingFollow = await _context.Follows.FindAsync(currentUserId, userId);
             if (existingFollow != null)
                 return BadRequest("đã theo dõi người dùng này.");
 
-            var follow = new Follow { FollowerId = currentUserId, FollowingId = targetUserId };
+            var follow = new Follow { FollowerId = currentUserId, FollowingId = userId };
             _context.Follows.Add(follow);
 
             _context.Notifications.Add(
                 new Notification
                 {
-                    UserId = targetUserId,
+                    UserId = userId,
                     Content = $"Người dùng {User.Identity!.Name} đã bắt đầu theo dõi bạn.",
                     Type = "follow",
-                    RedirectUrl = $"/profile/{User.Identity!.Name}",
+                    RedirectUrl = $"/u/{User.Identity!.Name}",
                 }
             );
 
@@ -88,11 +88,11 @@ namespace ViNgocHiep_2123110365.Controllers
         }
 
         [Authorize]
-        [HttpDelete("unfollow/{targetUserId}")]
-        public async Task<IActionResult> UnfollowUser(int targetUserId)
+        [HttpDelete("unfollow/{userId}")]
+        public async Task<IActionResult> UnfollowUser(int userId)
         {
             var currentUserId = GetCurrentUserId();
-            var follow = await _context.Follows.FindAsync(currentUserId, targetUserId);
+            var follow = await _context.Follows.FindAsync(currentUserId, userId);
             if (follow == null)
                 return NotFound();
 
@@ -206,6 +206,64 @@ namespace ViNgocHiep_2123110365.Controllers
                     totalFavorites = totalFavorites,
                 }
             );
+        }
+
+        // GET: api/users/{username}/followers
+        [HttpGet("{username}/followers")]
+        public async Task<IActionResult> GetFollowers(string username)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == username);
+            if (user == null)
+                return NotFound();
+
+            var followers = await _context
+                .Follows.Where(f => f.FollowingId == user.Id)
+                .Join(
+                    _context.Users,
+                    f => f.FollowerId,
+                    u => u.Id,
+                    (f, u) =>
+                        new
+                        {
+                            u.Id,
+                            u.FullName,
+                            u.Username,
+                            u.Avatar,
+                            u.Bio,
+                        }
+                )
+                .ToListAsync();
+
+            return Ok(followers);
+        }
+
+        // GET: api/users/{username}/following
+        [HttpGet("{username}/following")]
+        public async Task<IActionResult> GetFollowing(string username)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == username);
+            if (user == null)
+                return NotFound();
+
+            var following = await _context
+                .Follows.Where(f => f.FollowerId == user.Id)
+                .Join(
+                    _context.Users,
+                    f => f.FollowingId,
+                    u => u.Id,
+                    (f, u) =>
+                        new
+                        {
+                            u.Id,
+                            u.FullName,
+                            u.Username,
+                            u.Avatar,
+                            u.Bio,
+                        }
+                )
+                .ToListAsync();
+
+            return Ok(following);
         }
     }
 }

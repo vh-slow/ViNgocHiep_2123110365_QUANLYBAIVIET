@@ -1,18 +1,20 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace ViNgocHiep_2123110365.Models;
-
-public class ViewLog
+namespace ViNgocHiep_2123110365.Models
 {
-    [Key]
-    public int Id { get; set; }
+    [Table("ViewLog")]
+    public class ViewLog
+    {
+        [Key]
+        public int Id { get; set; }
 
-    [Required]
-    public int BookId { get; set; }
+        [Required]
+        public int BookId { get; set; }
 
-    public DateTime ViewedAt { get; set; } = DateTime.Now;
+        public DateTime ViewedAt { get; set; } = DateTime.Now;
 
-    [ForeignKey("BookId")]
-    public Book? Book { get; set; }
+        [ForeignKey("BookId")]
+        public Book? Book { get; set; }
+    }
 }

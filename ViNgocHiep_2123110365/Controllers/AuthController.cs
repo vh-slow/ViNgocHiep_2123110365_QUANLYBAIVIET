@@ -91,7 +91,7 @@ namespace ViNgocHiep_2123110365.Controllers
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
             if (user == null)
-                return Ok(new { message = "Nếu email tồn tại, mã OTP sẽ được gửi đi." });
+                return Ok(new { message = "Email không tồn tại." });
 
             var otp = new Random().Next(100000, 999999).ToString();
             user.ResetPasswordToken = otp;
