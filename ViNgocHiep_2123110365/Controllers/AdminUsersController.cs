@@ -79,7 +79,7 @@ namespace ViNgocHiep_2123110365.Controllers
             if (user.Role == "admin")
                 return BadRequest(new { message = "Không thể khóa tài khoản Admin khác." });
 
-            user.Status = 2; // 2: Locked
+            user.Status = 2;
             user.UpdatedAt = DateTime.Now;
 
             var userBooks = await _context

@@ -129,8 +129,6 @@ namespace ViNgocHiep_2123110365.Controllers
                 .Include(b => b.Favorites)
                 .Include(b => b.BookTags!)
                 .ThenInclude(bt => bt.Tag)
-                .Include(b => b.Comments!)
-                .ThenInclude(c => c.User)
                 .FirstOrDefaultAsync(b => b.Slug == slug);
 
             if (book == null)
@@ -179,22 +177,6 @@ namespace ViNgocHiep_2123110365.Controllers
                     Username = book.User.Username,
                     Avatar = book.User.Avatar,
                 },
-                Comments = book.Comments!.Select(c => new CommentDTO
-                    {
-                        Id = c.Id,
-                        Content = c.Content,
-                        CreatedAt = c.CreatedAt,
-                        BookId = c.BookId,
-                        User = new UserDTO
-                        {
-                            Id = c.User!.Id,
-                            FullName = c.User.FullName,
-                            Username = c.User.Username,
-                            Avatar = c.User.Avatar,
-                        },
-                    })
-                    .OrderByDescending(c => c.CreatedAt)
-                    .ToList(),
             };
             return Ok(bookDetail);
         }

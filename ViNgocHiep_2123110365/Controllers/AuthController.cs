@@ -53,7 +53,7 @@ namespace ViNgocHiep_2123110365.Controllers
         }
 
         [HttpPost("login")]
-        [EnableRateLimiting("ChongSpam")]
+        [EnableRateLimiting("AntiSpam")]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
             var user = await _context.Users.SingleOrDefaultAsync(u =>
@@ -86,7 +86,7 @@ namespace ViNgocHiep_2123110365.Controllers
         }
 
         [HttpPost("forgot-password")]
-        [EnableRateLimiting("ChongSpam")]
+        [EnableRateLimiting("AntiSpam")]
         public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);

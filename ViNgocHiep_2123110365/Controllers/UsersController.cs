@@ -110,6 +110,8 @@ namespace ViNgocHiep_2123110365.Controllers
             var user = await _context.Users.FindAsync(userId);
             if (user == null)
                 return Unauthorized();
+            var followersCount = await _context.Follows.CountAsync(f => f.FollowingId == userId);
+            var followingCount = await _context.Follows.CountAsync(f => f.FollowerId == userId);
 
             return Ok(
                 new UserProfileDTO
@@ -123,6 +125,8 @@ namespace ViNgocHiep_2123110365.Controllers
                     Role = user.Role,
                     Status = user.Status,
                     CreatedAt = user.CreatedAt,
+                    FollowersCount = followersCount,
+                    FollowingCount = followingCount,
                 }
             );
         }

@@ -20,6 +20,9 @@ namespace ViNgocHiep_2123110365.DTOs
         public string Role { get; set; } = string.Empty;
         public byte Status { get; set; }
         public DateTime CreatedAt { get; set; }
+
+        public int FollowersCount { get; set; }
+        public int FollowingCount { get; set; }
     }
 
     public class UpdateProfileDTO

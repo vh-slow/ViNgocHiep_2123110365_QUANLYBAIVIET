@@ -66,7 +66,7 @@ namespace ViNgocHiep_2123110365
                 options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
                 options.AddFixedWindowLimiter(
-                    policyName: "ChongSpam",
+                    policyName: "AntiSpam",
                     options =>
                     {
                         options.PermitLimit = 5;
