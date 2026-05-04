@@ -2,10 +2,12 @@
 using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using ViNgocHiep_2123110365.Data;
 using ViNgocHiep_2123110365.DTOs;
+using ViNgocHiep_2123110365.Helpers;
 using ViNgocHiep_2123110365.Models;
 
 namespace ViNgocHiep_2123110365.Controllers
@@ -51,6 +53,7 @@ namespace ViNgocHiep_2123110365.Controllers
         }
 
         [HttpPost("login")]
+        [EnableRateLimiting("ChongSpam")]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
             var user = await _context.Users.SingleOrDefaultAsync(u =>
@@ -80,6 +83,45 @@ namespace ViNgocHiep_2123110365.Controllers
                     },
                 }
             );
+        }
+
+        [HttpPost("forgot-password")]
+        [EnableRateLimiting("ChongSpam")]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+            if (user == null)
+                return Ok(new { message = "Nếu email tồn tại, mã OTP sẽ được gửi đi." });
+
+            var otp = new Random().Next(100000, 999999).ToString();
+            user.ResetPasswordToken = otp;
+            user.ResetPasswordExpiry = DateTime.Now.AddMinutes(15);
+
+            await _context.SaveChangesAsync();
+
+            string body =
+                $"<h3>Mã xác thực đổi mật khẩu VastVerse của bạn là: <b style='color:blue'>{otp}</b></h3><p>Mã này có hiệu lực trong 15 phút.</p>";
+            await EmailHelper.SendEmailAsync(user.Email, "Mã xác thực đặt lại mật khẩu", body);
+
+            return Ok(new { message = "Mã xác thực đã được gửi tới email của bạn." });
+        }
+
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u =>
+                u.Email == request.Email && u.ResetPasswordToken == request.Token
+            );
+
+            if (user == null || user.ResetPasswordExpiry < DateTime.Now)
+                return BadRequest(new { message = "Mã xác thực không đúng hoặc đã hết hạn." });
+
+            user.Password = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+            user.ResetPasswordToken = null;
+            user.ResetPasswordExpiry = null;
+
+            await _context.SaveChangesAsync();
+            return Ok(new { success = true, message = "Đổi mật khẩu mới thành công!" });
         }
 
         private string GenerateJwtToken(User user)

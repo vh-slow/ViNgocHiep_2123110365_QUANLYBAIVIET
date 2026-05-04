@@ -72,6 +72,23 @@ namespace ViNgocHiep_2123110365.Controllers
             };
 
             _context.Comments.Add(comment);
+
+            if (book.UserId != userId)
+            {
+                var senderName = User.Identity?.Name ?? "Ai đó";
+
+                _context.Notifications.Add(
+                    new Notification
+                    {
+                        UserId = book.UserId,
+                        Content = $"{senderName} đã bình luận về bài viết '{book.Title}' của bạn.",
+                        Type = "comment",
+                        RedirectUrl = $"/{book.Slug}",
+                        CreatedAt = DateTime.Now,
+                        IsRead = false,
+                    }
+                );
+            }
             await _context.SaveChangesAsync();
 
             return Ok(new { success = true, message = "Đã gửi bình luận." });

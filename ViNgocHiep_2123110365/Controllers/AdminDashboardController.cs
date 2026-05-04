@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ViNgocHiep_2123110365.Data;
+using ViNgocHiep_2123110365.DTOs;
 
 namespace ViNgocHiep_2123110365.Controllers
 {
@@ -74,6 +75,53 @@ namespace ViNgocHiep_2123110365.Controllers
                     TrendingPosts = trendingPosts,
                 }
             );
+        }
+
+        [HttpGet("analytics")]
+        public async Task<ActionResult<AdminAnalyticsDTO>> GetAnalytics()
+        {
+            var last7Days = Enumerable
+                .Range(0, 7)
+                .Select(i => DateTime.Now.Date.AddDays(-i))
+                .OrderBy(d => d)
+                .ToList();
+
+            var startDate = last7Days.First();
+
+            var usersData = await _context
+                .Users.Where(u => u.CreatedAt >= startDate)
+                .GroupBy(u => u.CreatedAt.Date)
+                .Select(g => new { Date = g.Key, Count = g.Count() })
+                .ToListAsync();
+
+            var viewsData = await _context
+                .ViewLogs.Where(v => v.ViewedAt >= startDate)
+                .GroupBy(v => v.ViewedAt.Date)
+                .Select(g => new { Date = g.Key, Count = g.Count() })
+                .ToListAsync();
+
+            var response = new AdminAnalyticsDTO();
+
+            foreach (var day in last7Days)
+            {
+                string dateStr = day.ToString("dd/MM");
+                response.UsersChart.Add(
+                    new ChartDataDTO
+                    {
+                        Date = dateStr,
+                        Value = usersData.FirstOrDefault(x => x.Date == day)?.Count ?? 0,
+                    }
+                );
+                response.ViewsChart.Add(
+                    new ChartDataDTO
+                    {
+                        Date = dateStr,
+                        Value = viewsData.FirstOrDefault(x => x.Date == day)?.Count ?? 0,
+                    }
+                );
+            }
+
+            return Ok(response);
         }
     }
 }

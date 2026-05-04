@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using ViNgocHiep_2123110365.Data;
 using ViNgocHiep_2123110365.DTOs;
 using ViNgocHiep_2123110365.Helpers;
+using ViNgocHiep_2123110365.Models;
 
 namespace ViNgocHiep_2123110365.Controllers
 {
@@ -34,19 +35,70 @@ namespace ViNgocHiep_2123110365.Controllers
             if (user == null)
                 return NotFound(new { message = "Không tìm thấy người dùng." });
 
+            var followersCount = await _context.Follows.CountAsync(f => f.FollowingId == user.Id);
+            var followingCount = await _context.Follows.CountAsync(f => f.FollowerId == user.Id);
+
             return Ok(
-                new UserProfileDTO
+                new
                 {
-                    Id = user.Id,
-                    FullName = user.FullName,
-                    Username = user.Username,
-                    Avatar = user.Avatar,
-                    Bio = user.Bio,
-                    Role = user.Role,
-                    Status = user.Status,
-                    CreatedAt = user.CreatedAt,
+                    user.Id,
+                    user.FullName,
+                    user.Username,
+                    user.Avatar,
+                    user.Bio,
+                    user.Role,
+                    FollowersCount = followersCount,
+                    FollowingCount = followingCount,
                 }
             );
+        }
+
+        // [POST] api/users/follow/{targetUserId}
+        [Authorize]
+        [HttpPost("follow/{targetUserId}")]
+        public async Task<IActionResult> FollowUser(int targetUserId)
+        {
+            var currentUserId = GetCurrentUserId();
+            if (currentUserId == targetUserId)
+                return BadRequest("không thể tự theo dõi!");
+
+            var targetUser = await _context.Users.FindAsync(targetUserId);
+            if (targetUser == null)
+                return NotFound();
+
+            var existingFollow = await _context.Follows.FindAsync(currentUserId, targetUserId);
+            if (existingFollow != null)
+                return BadRequest("đã theo dõi người dùng này.");
+
+            var follow = new Follow { FollowerId = currentUserId, FollowingId = targetUserId };
+            _context.Follows.Add(follow);
+
+            _context.Notifications.Add(
+                new Notification
+                {
+                    UserId = targetUserId,
+                    Content = $"Người dùng {User.Identity!.Name} đã bắt đầu theo dõi bạn.",
+                    Type = "follow",
+                    RedirectUrl = $"/profile/{User.Identity!.Name}",
+                }
+            );
+
+            await _context.SaveChangesAsync();
+            return Ok(new { success = true, message = "Đã theo dõi." });
+        }
+
+        [Authorize]
+        [HttpDelete("unfollow/{targetUserId}")]
+        public async Task<IActionResult> UnfollowUser(int targetUserId)
+        {
+            var currentUserId = GetCurrentUserId();
+            var follow = await _context.Follows.FindAsync(currentUserId, targetUserId);
+            if (follow == null)
+                return NotFound();
+
+            _context.Follows.Remove(follow);
+            await _context.SaveChangesAsync();
+            return Ok(new { success = true, message = "Đã bỏ theo dõi." });
         }
 
         // GET: api/users/me

@@ -108,6 +108,24 @@ namespace ViNgocHiep_2123110365.Controllers
                     CreatedAt = DateTime.Now,
                 };
                 _context.Favorites.Add(newFavorite);
+
+                if (book.UserId != userId)
+                {
+                    var senderName = User.Identity?.Name ?? "Ai đó";
+
+                    _context.Notifications.Add(
+                        new Notification
+                        {
+                            UserId = book.UserId,
+                            Content = $"{senderName} đã yêu thích bài viết '{book.Title}' của bạn.",
+                            Type = "favorite",
+                            RedirectUrl = $"/{book.Slug}",
+                            CreatedAt = DateTime.Now,
+                            IsRead = false,
+                        }
+                    );
+                }
+
                 await _context.SaveChangesAsync();
                 var currentFavCount = await _context.Favorites.CountAsync(f => f.BookId == bookId);
                 return Ok(

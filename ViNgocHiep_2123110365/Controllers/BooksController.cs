@@ -38,6 +38,8 @@ namespace ViNgocHiep_2123110365.Controllers
                 .Books.Include(b => b.Category)
                 .Include(b => b.User)
                 .Include(b => b.Favorites)
+                .Include(b => b.BookTags!)
+                .ThenInclude(bt => bt.Tag)
                 .Where(b => b.Status == 1 && b.Category != null && !b.Category.IsDeleted)
                 .AsQueryable();
 
@@ -78,6 +80,8 @@ namespace ViNgocHiep_2123110365.Controllers
 
                     FavoriteCount = b.Favorites.Count,
 
+                    Tags = b.BookTags!.Select(bt => bt.Tag!.Name).ToList(),
+
                     Category = new CategoryDTO
                     {
                         Id = b.Category!.Id,
@@ -112,6 +116,8 @@ namespace ViNgocHiep_2123110365.Controllers
                 .Books.Include(b => b.Category)
                 .Include(b => b.User)
                 .Include(b => b.Favorites)
+                .Include(b => b.BookTags!)
+                .ThenInclude(bt => bt.Tag)
                 .Include(b => b.Comments!)
                 .ThenInclude(c => c.User)
                 .FirstOrDefaultAsync(b => b.Slug == slug);
@@ -146,6 +152,8 @@ namespace ViNgocHiep_2123110365.Controllers
                     && book.Favorites!.Any(f => f.UserId == currentUserId.Value),
 
                 FavoriteCount = book.Favorites!.Count,
+
+                Tags = book.BookTags!.Select(bt => bt.Tag!.Name).ToList(),
 
                 Category = new CategoryDTO
                 {
@@ -189,6 +197,8 @@ namespace ViNgocHiep_2123110365.Controllers
 
             var book = await _context
                 .Books.Include(b => b.Category)
+                .Include(b => b.BookTags!)
+                .ThenInclude(bt => bt.Tag)
                 .FirstOrDefaultAsync(b => b.Id == id);
 
             if (book == null || book.IsDeleted)
@@ -207,6 +217,7 @@ namespace ViNgocHiep_2123110365.Controllers
                     Thumbnail = book.Thumbnail,
                     Status = book.Status,
                     Category = new CategoryDTO { Id = book.CategoryId },
+                    Tags = book.BookTags!.Select(bt => bt.Tag!.Name).ToList(),
                 }
             );
         }
@@ -299,9 +310,14 @@ namespace ViNgocHiep_2123110365.Controllers
             var book = await _context.Books.FindAsync(id);
             if (book == null)
                 return NotFound();
+
             book.ViewCount += 1;
+
+            var viewLog = new ViewLog { BookId = id, ViewedAt = DateTime.Now };
+            _context.ViewLogs.Add(viewLog);
+
             await _context.SaveChangesAsync();
-            return Ok(new { message = "Đã tăng lượt xem", newViewCount = book.ViewCount });
+            return Ok(new { message = "Đã ghi nhận lượt xem", newViewCount = book.ViewCount });
         }
 
         // POST: api/Books
@@ -329,11 +345,13 @@ namespace ViNgocHiep_2123110365.Controllers
             _context.Books.Add(book);
             await _context.SaveChangesAsync();
 
-            string responseMessage = isAdmin
-                ? "Đăng bài thành công! Bài viết đã được hiển thị."
-                : "Bài viết đã lưu và đang chờ Admin phê duyệt.";
+            if (request.TagNames != null && request.TagNames.Any())
+            {
+                await ProcessTags(book.Id, request.TagNames);
+            }
 
-            return Ok(new { success = true, message = responseMessage });
+            string msg = isAdmin ? "Đăng bài thành công!" : "Bài viết đang chờ Admin phê duyệt.";
+            return Ok(new { success = true, message = msg });
         }
 
         // PUT: api/Books/{id}
@@ -357,9 +375,7 @@ namespace ViNgocHiep_2123110365.Controllers
 
             if (!isAdmin && oldBook.Status == 3)
             {
-                return BadRequest(
-                    new { message = "Bài viết này đang bị khóa, bạn không thể chỉnh sửa nội dung." }
-                );
+                return BadRequest(new { message = "Bài viết bị khóa." });
             }
 
             _context.BookHistories.Add(
@@ -371,6 +387,13 @@ namespace ViNgocHiep_2123110365.Controllers
                     CreatedAt = DateTime.Now,
                 }
             );
+
+            var oldTags = _context.BookTags.Where(bt => bt.BookId == id);
+            _context.BookTags.RemoveRange(oldTags);
+            if (request.TagNames != null && request.TagNames.Any())
+            {
+                await ProcessTags(id, request.TagNames);
+            }
 
             var updatedBook = new Book
             {
@@ -398,6 +421,33 @@ namespace ViNgocHiep_2123110365.Controllers
                 : "Cập nhật thành công, đang chờ duyệt lại bài viết!";
 
             return Ok(new { success = true, message = responseMessage });
+        }
+
+        private async Task ProcessTags(int bookId, List<string> tagNames)
+        {
+            foreach (var name in tagNames)
+            {
+                var trimmedName = name.Trim();
+                if (string.IsNullOrEmpty(trimmedName))
+                    continue;
+
+                var tag = await _context.Tags.FirstOrDefaultAsync(t =>
+                    t.Name.ToLower() == trimmedName.ToLower()
+                );
+                if (tag == null)
+                {
+                    tag = new Tag
+                    {
+                        Name = trimmedName,
+                        Slug = StringHelper.GenerateSlug(trimmedName),
+                        CreatedAt = DateTime.Now,
+                    };
+                    _context.Tags.Add(tag);
+                    await _context.SaveChangesAsync();
+                }
+                _context.BookTags.Add(new BookTag { BookId = bookId, TagId = tag.Id });
+            }
+            await _context.SaveChangesAsync();
         }
 
         // DELETE: api/Books/{id}

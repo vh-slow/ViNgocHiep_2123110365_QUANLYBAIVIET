@@ -19,6 +19,7 @@ public class AppDbContext : DbContext
     public DbSet<BookTag> BookTags { get; set; }
     public DbSet<Follow> Follows { get; set; }
     public DbSet<Notification> Notifications { get; set; }
+    public DbSet<ViewLog> ViewLogs { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -68,5 +69,7 @@ public class AppDbContext : DbContext
         modelBuilder
             .Entity<Follow>()
             .HasQueryFilter(f => !f.Follower!.IsDeleted && !f.Following!.IsDeleted);
+
+        modelBuilder.Entity<ViewLog>().HasQueryFilter(v => !v.Book!.IsDeleted);
     }
 }
