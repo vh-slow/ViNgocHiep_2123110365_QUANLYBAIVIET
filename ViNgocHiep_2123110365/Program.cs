@@ -1,5 +1,7 @@
 ﻿using System.Text;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using ViNgocHiep_2123110365.Data;
@@ -55,6 +57,22 @@ namespace ViNgocHiep_2123110365
                             .AllowAnyMethod()
                             .AllowAnyHeader()
                             .AllowCredentials();
+                    }
+                );
+            });
+
+            builder.Services.AddRateLimiter(options =>
+            {
+                options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+                options.AddFixedWindowLimiter(
+                    policyName: "ChongSpam",
+                    options =>
+                    {
+                        options.PermitLimit = 5;
+                        options.Window = TimeSpan.FromSeconds(10);
+                        options.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+                        options.QueueLimit = 0;
                     }
                 );
             });
@@ -124,6 +142,7 @@ namespace ViNgocHiep_2123110365
             app.UseStaticFiles();
 
             app.UseCors("AllowAll");
+            app.UseRateLimiter();
 
             app.UseAuthentication();
             app.UseAuthorization();

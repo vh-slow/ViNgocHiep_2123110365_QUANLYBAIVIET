@@ -16,25 +16,23 @@ namespace ViNgocHiep_2123110365.Migrations
                 table: "Users",
                 type: "tinyint",
                 nullable: false,
-                defaultValue: (byte)0);
+                defaultValue: (byte)0
+            );
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "UpdatedAt",
                 table: "Users",
                 type: "datetime2",
-                nullable: true);
+                nullable: true
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "Status",
-                table: "Users");
+            migrationBuilder.DropColumn(name: "Status", table: "Users");
 
-            migrationBuilder.DropColumn(
-                name: "UpdatedAt",
-                table: "Users");
+            migrationBuilder.DropColumn(name: "UpdatedAt", table: "Users");
         }
     }
 }

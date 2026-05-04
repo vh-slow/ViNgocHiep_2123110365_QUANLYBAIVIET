@@ -49,4 +49,5 @@ public class Book
 
     public ICollection<Comment>? Comments { get; set; }
     public ICollection<Favorite>? Favorites { get; set; }
+    public ICollection<BookTag>? BookTags { get; set; }
 }

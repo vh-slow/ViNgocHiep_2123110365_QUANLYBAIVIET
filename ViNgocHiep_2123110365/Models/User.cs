@@ -30,7 +30,7 @@ public class User
     public string? Bio { get; set; }
 
     [StringLength(20)]
-    public string Role { get; set; } = "member";
+    public string Role { get; set; } = "user";
 
     public DateTime CreatedAt { get; set; } = DateTime.Now;
 
@@ -39,8 +39,16 @@ public class User
     public DateTime? UpdatedAt { get; set; }
     public bool IsDeleted { get; set; } = false;
 
+    [StringLength(100)]
+    public string? ResetPasswordToken { get; set; }
+    public DateTime? ResetPasswordExpiry { get; set; }
+
     // Navigation Properties
     public ICollection<Book>? Books { get; set; }
     public ICollection<Comment>? Comments { get; set; }
     public ICollection<Favorite>? Favorites { get; set; }
+    public ICollection<Notification>? Notifications { get; set; }
+
+    public ICollection<Follow>? Followings { get; set; }
+    public ICollection<Follow>? Followers { get; set; }
 }
