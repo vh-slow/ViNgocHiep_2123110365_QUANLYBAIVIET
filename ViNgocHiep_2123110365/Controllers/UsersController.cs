@@ -38,6 +38,15 @@ namespace ViNgocHiep_2123110365.Controllers
             var followersCount = await _context.Follows.CountAsync(f => f.FollowingId == user.Id);
             var followingCount = await _context.Follows.CountAsync(f => f.FollowerId == user.Id);
 
+            bool isFollowing = false;
+            if (User.Identity?.IsAuthenticated == true)
+            {
+                var currentUserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                isFollowing = await _context.Follows.AnyAsync(f =>
+                    f.FollowerId == currentUserId && f.FollowingId == user.Id
+                );
+            }
+
             return Ok(
                 new
                 {
@@ -47,8 +56,10 @@ namespace ViNgocHiep_2123110365.Controllers
                     user.Avatar,
                     user.Bio,
                     user.Role,
+                    user.CreatedAt,
                     FollowersCount = followersCount,
                     FollowingCount = followingCount,
+                    IsFollowing = isFollowing,
                 }
             );
         }

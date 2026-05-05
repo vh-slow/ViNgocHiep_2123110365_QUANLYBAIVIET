@@ -44,5 +44,34 @@ namespace ViNgocHiep_2123110365.Controllers
             await _context.SaveChangesAsync();
             return Ok(new { success = true });
         }
+
+        [HttpPut("read-all")]
+        [Authorize]
+        public async Task<IActionResult> MarkAllAsRead()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
+            {
+                return Unauthorized(new { message = "Vui lòng đăng nhập." });
+            }
+
+            var unreadNotifications = await _context
+                .Notifications.Where(n => n.UserId == userId && n.IsRead == false)
+                .ToListAsync();
+
+            if (!unreadNotifications.Any())
+            {
+                return Ok(new { message = "Không có thông báo nào chưa đọc." });
+            }
+
+            foreach (var notif in unreadNotifications)
+            {
+                notif.IsRead = true;
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Đã đánh dấu đọc tất cả thông báo." });
+        }
     }
 }

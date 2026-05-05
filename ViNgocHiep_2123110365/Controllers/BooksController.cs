@@ -104,6 +104,7 @@ namespace ViNgocHiep_2123110365.Controllers
                         Id = b.User!.Id,
                         FullName = b.User.FullName,
                         Username = b.User.Username,
+                        Avatar = b.User.Avatar,
                     },
                 })
                 .ToListAsync();
@@ -663,6 +664,7 @@ namespace ViNgocHiep_2123110365.Controllers
                         Id = b.User!.Id,
                         FullName = b.User.FullName,
                         Username = b.User.Username,
+                        Avatar = b.User.Avatar,
                     },
                 })
                 .ToListAsync();
